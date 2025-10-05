@@ -1,0 +1,7 @@
+# Copy to config.yaml and edit.
+music_dir: "/absolute/path/to/your/music"
+sample_rate: 22050
+duration_sec: 30
+hnsw_m: 32
+hnsw_ef_construction: 200
+neighbors_k: 25
