@@ -1,14 +1,17 @@
-import os, pandas as pd
+import os
 import streamlit as st
 
-st.set_page_config(page_title="Crate Digger", page_icon="🎧", layout="wide")
-st.title("🎧 Crate Digger – Local Music Recommender")
+st.set_page_config(page_title="Vector DJ", page_icon="🎧", layout="wide")
+st.title("🎧 Vector DJ – Local Music Recommender")
 
 st.markdown('''Use the pages on the left:
-🔎 Similar to…: pick a seed track and get neighbors.
-🗺️ Map: visualize your library in 2-D (UMAP).
-⭐ Rate tracks: quickly add 1–5⭐ ratings.
-⚙️ Train model: fit a LightGBM regressor for your stars.
+- 🔎 Similar to…: pick a seed track and get neighbors.
+
+- 🗺️ Map: visualize your library in 2-D (UMAP).
+
+- ⭐ Rate tracks: quickly add 1–5⭐ ratings.
+
+- ⚙️ Train model: fit a LightGBM regressor for your stars.
 Run python build_index.py first to create DB/features/index.
 ''')
 
