@@ -1,6 +1,8 @@
-# Crate Digger (Local Music Recommender)
+# Vector DJ (Local Music Recommender)
 
-A tiny Streamlit app to explore a local music collection (~10k tracks) by **similarity, clusters, and personal ratings**.
+
+
+A Streamlit app to explore a local music collection by **similarity, clusters, and personal ratings**.
 
 ## What it does
 - Extracts lightweight audio features (tempo, MFCCs, chroma, timbre).
@@ -12,6 +14,10 @@ A tiny Streamlit app to explore a local music collection (~10k tracks) by **simi
   - **Rate** tracks (1–5⭐) and save to a local SQLite DB.
   - Filter neighbors by **BPM** and **Camelot key** for DJ-friendly transitions.
   - **Train a model (LightGBM)** to re-rank by your predicted stars.
+
+![vector_dj_umap](https://github.com/user-attachments/assets/70e640b6-e7ad-4fb5-a330-0429ce75ead4)
+
+
 
 ## Quickstart
 ```bash
