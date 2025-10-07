@@ -33,3 +33,8 @@ data/umap/umap_2d.npy
 data/model/lgbm_stars.pkl (after training))
 
 ```
+
+## Dependencies
+
+Listening to song previews depends on having ffmpeg installed in your OS.
+
