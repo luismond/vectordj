@@ -1,6 +1,15 @@
 import os, pandas as pd, sqlite3, subprocess, shutil
 import streamlit as st
 
+import sqlite3
+from recutils.indexer import DB_PATH
+conn = sqlite3.connect(DB_PATH)
+rated = conn.execute("SELECT COUNT(*) FROM tracks WHERE stars IS NOT NULL").fetchone()[0]
+total = conn.execute("SELECT COUNT(*) FROM tracks").fetchone()[0]
+conn.close()
+st.metric("Rated tracks", f"{rated} / {total}", f"{(rated/total if total else 0):.1%}")
+
+
 st.title("⭐ Rate tracks")
 
 DB_PATH = os.path.join("data", "tracks.sqlite")
