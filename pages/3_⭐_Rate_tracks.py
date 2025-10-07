@@ -105,22 +105,9 @@ else:
 
             stars = st.slider("Stars", 1, 5, 3, key=row["id"])
             if st.button("Save", key=row["id"] + "_save"):
-                affected = 0
                 with sqlite3.connect(DB_PATH) as conn:
-                    cur = conn.execute(
-                        "UPDATE tracks SET stars=? WHERE id=?",
-                        (int(stars), row["id"]),
-                    )
-                    conn.commit()
-                    affected = cur.rowcount
-                if affected:
-                    st.session_state["rating_saved"] = (
-                        f"Saved {int(stars)}⭐ for {row['artist']} – {row['title']}."
-                    )
-                    st.experimental_rerun()
-                else:
-                    st.warning(
-                        "Could not save rating. The track may have been removed from the database."
-                    )
+                    conn.execute("UPDATE tracks SET stars=? WHERE id=?", (int(stars), row["id"]))
+                st.session_state["rating_saved"] = f"Saved {int(stars)}⭐ for {row['artist']} – {row['title']}."
+                st.experimental_rerun()
 
 st.caption("Tip: use the sidebar rerun button any time you want a fresh unrated batch.")
