@@ -1,4 +1,4 @@
-import os, pandas as pd, sqlite3, subprocess, shutil
+import os, pandas as pd, sqlite3, subprocess, shutil, random
 import streamlit as st
 
 from recutils.indexer import DB_PATH
@@ -21,14 +21,36 @@ if "rating_saved" in st.session_state:
 PREVIEW_DIR = os.path.join(os.path.dirname(DB_PATH), "previews")
 os.makedirs(PREVIEW_DIR, exist_ok=True)
 
-def random_unrated(limit=30):
-    with sqlite3.connect(DB_PATH) as conn:
-        df = pd.read_sql_query(
-            "SELECT id, path, title, artist, album, genre, duration FROM tracks "
-            "WHERE stars IS NULL ORDER BY RANDOM() LIMIT ?",
-            conn, params=(limit,)
-        )
-    return df
+
+def get_random_unrated_ids(limit=30):
+    conn = sqlite3.connect(DB_PATH)
+    ids = [r[0] for r in conn.execute(
+        "SELECT id FROM tracks WHERE stars IS NULL"
+    ).fetchall()]
+    conn.close()
+    random.seed(42)  # or st.session_state.get("batch_seed", 42)
+    return random.sample(ids, min(limit, len(ids)))
+
+def get_df_for_ids(ids):
+    if not ids:
+        return pd.DataFrame(columns=["id","path","title","artist","album","genre","duration","stars"])
+    conn = sqlite3.connect(DB_PATH)
+    ph = ",".join("?"*len(ids))
+    df = pd.read_sql_query(
+        f"SELECT id, path, title, artist, album, genre, duration, stars FROM tracks WHERE id IN ({ph})",
+        conn, params=ids
+    )
+    conn.close()
+    order = {tid:i for i, tid in enumerate(ids)}
+    df["__order"] = df["id"].map(order)
+    return df.sort_values("__order")
+
+# Create batch once
+if "batch_ids" not in st.session_state:
+    st.session_state.batch_ids = get_random_unrated_ids(limit=30)
+
+df = get_df_for_ids(st.session_state.batch_ids)
+
 
 def preview_path_for(tid: str) -> str:
     return os.path.join(PREVIEW_DIR, f"{tid}.mp3")
@@ -63,8 +85,6 @@ def ensure_preview(tid: str, src_path: str, start_sec: int = 0, dur_sec: int = 3
         return out_path if os.path.exists(out_path) else None
     except Exception:
         return None
-
-df = random_unrated(limit=30)
 
 if df.empty:
     st.success("All tracks are rated!")
@@ -108,6 +128,6 @@ else:
                 with sqlite3.connect(DB_PATH) as conn:
                     conn.execute("UPDATE tracks SET stars=? WHERE id=?", (int(stars), row["id"]))
                 st.session_state["rating_saved"] = f"Saved {int(stars)}⭐ for {row['artist']} – {row['title']}."
-                st.experimental_rerun()
+
 
 st.caption("Tip: use the sidebar rerun button any time you want a fresh unrated batch.")
