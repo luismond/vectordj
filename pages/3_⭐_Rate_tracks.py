@@ -43,11 +43,11 @@ def get_df_for_ids(ids):
     conn.close()
     order = {tid:i for i, tid in enumerate(ids)}
     df["__order"] = df["id"].map(order)
-    return df.sort_values("__order")
+    return df.sample(len(df)) # or df.sort_values("__order")
 
 # Create batch once
 if "batch_ids" not in st.session_state:
-    st.session_state.batch_ids = get_random_unrated_ids(limit=30)
+    st.session_state.batch_ids = get_random_unrated_ids(limit=50)
 
 df = get_df_for_ids(st.session_state.batch_ids)
 
