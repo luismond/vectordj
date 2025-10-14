@@ -1,6 +1,5 @@
 import os, pandas as pd, sqlite3, subprocess, shutil, random
 import streamlit as st
-
 from recutils.indexer import DB_PATH
 
 if not os.path.exists(DB_PATH):
@@ -12,15 +11,10 @@ with sqlite3.connect(DB_PATH) as conn:
     total = conn.execute("SELECT COUNT(*) FROM tracks").fetchone()[0]
 st.metric("Rated tracks", f"{rated} / {total}", f"{(rated/total if total else 0):.1%}")
 
-
 st.title("⭐ Rate tracks")
 
 if "rating_saved" in st.session_state:
     st.success(st.session_state.pop("rating_saved"))
-
-PREVIEW_DIR = os.path.join(os.path.dirname(DB_PATH), "previews")
-os.makedirs(PREVIEW_DIR, exist_ok=True)
-
 
 def get_random_unrated_ids(limit=30):
     conn = sqlite3.connect(DB_PATH)
@@ -28,22 +22,26 @@ def get_random_unrated_ids(limit=30):
         "SELECT id FROM tracks WHERE stars IS NULL"
     ).fetchall()]
     conn.close()
-    random.seed(42)  # or st.session_state.get("batch_seed", 42)
+    #random.seed(42)  # or
+    st.session_state.get("batch_seed", 42)
     return random.sample(ids, min(limit, len(ids)))
 
 def get_df_for_ids(ids):
-    if not ids:
-        return pd.DataFrame(columns=["id","path","title","artist","album","genre","duration","stars"])
+    # if not ids:
+    #    return pd.DataFrame(columns=["id","path","title","artist","album","genre","duration","stars"])
     conn = sqlite3.connect(DB_PATH)
     ph = ",".join("?"*len(ids))
+    # Use pandas to read SQL query, passing column names, connection and track IDs as parameters
     df = pd.read_sql_query(
         f"SELECT id, path, title, artist, album, genre, duration, stars FROM tracks WHERE id IN ({ph})",
         conn, params=ids
     )
+    # Close DB connection
     conn.close()
+    # Reverse dict to generate track order
     order = {tid:i for i, tid in enumerate(ids)}
     df["__order"] = df["id"].map(order)
-    return df.sample(len(df)) # or df.sort_values("__order")
+    return df.sort_values("__order")
 
 # Create batch once
 if "batch_ids" not in st.session_state:
@@ -51,40 +49,8 @@ if "batch_ids" not in st.session_state:
 
 df = get_df_for_ids(st.session_state.batch_ids)
 
-
-def preview_path_for(tid: str) -> str:
-    return os.path.join(PREVIEW_DIR, f"{tid}.mp3")
-
 def has_ffmpeg() -> bool:
     return shutil.which("ffmpeg") is not None
-
-@st.cache_data(show_spinner=False)
-def ensure_preview(tid: str, src_path: str, start_sec: int = 0, dur_sec: int = 30) -> str | None:
-    """
-    Create a 30s MP3 preview with ffmpeg if not present; return preview file path.
-    Cached by (tid, src_path, start_sec, dur_sec).
-    """
-    out_path = preview_path_for(tid)
-    if os.path.exists(out_path):
-        return out_path
-    if not has_ffmpeg():
-        return None
-    try:
-        # Build ffmpeg command: 30s stereo, 44.1kHz, 160 kbps MP3
-        cmd = [
-            "ffmpeg", "-y",
-            "-ss", str(start_sec),
-            "-t", str(dur_sec),
-            "-i", src_path,
-            "-ac", "2",
-            "-ar", "44100",
-            "-b:a", "160k",
-            out_path,
-        ]
-        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return out_path if os.path.exists(out_path) else None
-    except Exception:
-        return None
 
 if df.empty:
     st.success("All tracks are rated!")
@@ -100,30 +66,17 @@ else:
             with col2:
                 dur_sec = st.selectbox("Dur (s)", [15, 30, 45], index=1, key=row["id"]+"_dur")
 
-            # Try to create/play preview
-            preview_btn = st.button("🎧 Generate/Play 30s preview", key=row["id"]+"_preview")
-            preview_file = None
-            if os.path.exists(preview_path_for(row["id"])) and not preview_btn:
-                preview_file = preview_path_for(row["id"])
-            elif preview_btn:
-                preview_file = ensure_preview(row["id"], row["path"], start_sec=start_sec, dur_sec=dur_sec)
+            try:
+                with open(row["path"], "rb") as fh:
+                    st.audio(fh.read())
+                    st.caption("Playing original file (no preview). If it fails, install ffmpeg for MP3 previews.")
+            except Exception:
+                if not has_ffmpeg():
+                    st.warning("ffmpeg not found. Install ffmpeg to enable reliable MP3 previews.")
+                else:
+                    st.warning("Could not generate or play a preview for this file.")
 
-            if preview_file and os.path.exists(preview_file):
-                with open(preview_file, "rb") as fh:
-                    st.audio(fh.read(), format="audio/mp3")
-            else:
-                # Fallback: try playing original file directly (works if browser supports codec)
-                try:
-                    with open(row["path"], "rb") as fh:
-                        st.audio(fh.read())
-                        st.caption("Playing original file (no preview). If it fails, install ffmpeg for MP3 previews.")
-                except Exception:
-                    if not has_ffmpeg():
-                        st.warning("ffmpeg not found. Install ffmpeg to enable reliable MP3 previews.")
-                    else:
-                        st.warning("Could not generate or play a preview for this file.")
-
-            stars = st.slider("Stars", 1, 5, 3, key=row["id"])
+            stars = st.slider("Stars", 1, 5, 1, key=row["id"])
             if st.button("Save", key=row["id"] + "_save"):
                 with sqlite3.connect(DB_PATH) as conn:
                     conn.execute("UPDATE tracks SET stars=? WHERE id=?", (int(stars), row["id"]))
